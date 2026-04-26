@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>勤怠管理</title>
+<style>
+  :root {
+    --blue:    #185FA5;
+    --blue-l:  #E6F1FB;
+    --blue-d:  #0C447C;
+    --green:   #1D9E75;
+    --green-l: #E1F5EE;
+    --green-d: #0F6E56;
+    --amber:   #BA7517;
+    --amber-l: #FAEEDA;
+    --amber-d: #854F0B;
+    --red:     #A32D2D;
+    --red-l:   #FCEBEB;
+    --gray:    #5F5E5A;
+    --gray-l:  #F1EFE8;
+    --border:  #e2e0d8;
+    --bg:      #f7f6f2;
+    --white:   #ffffff;
+    --text:    #1a1a18;
+    --text2:   #6b6a65;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, 'Hiragino Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100dvh; }
+
+  /* ナビ */
+  .nav { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 16px; display: flex; align-items: center; justify-content: space-between; height: 52px; position: sticky; top: 0; z-index: 100; }
+  .nav-title { font-size: 15px; font-weight: 600; }
+  .nav-user { font-size: 13px; color: var(--text2); }
+
+  /* タブ */
+  .tabs { display: flex; background: var(--white); border-bottom: 1px solid var(--border); }
+  .tab { flex: 1; padding: 12px 0; font-size: 13px; text-align: center; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; transition: all .15s; }
+  .tab.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+  /* コンテンツ */
+  .content { padding: 16px; max-width: 480px; margin: 0 auto; }
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* カード */
+  .card { background: var(--white); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px; }
+  .card-title { font-size: 12px; color: var(--text2); margin-bottom: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; }
+
+  /* 時計 */
+  .clock { text-align: center; padding: 12px 0 8px; }
+  .clock-time { font-size: 48px; font-weight: 300; letter-spacing: -2px; font-variant-numeric: tabular-nums; line-height: 1; }
+  .clock-date { font-size: 14px; color: var(--text2); margin-top: 6px; }
+
+  /* ステータスバッジ */
+  .badge { display: inline-block; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 99px; }
+  .badge-off     { background: var(--gray-l);  color: var(--gray); }
+  .badge-working { background: var(--green-l); color: var(--green-d); }
+  .badge-break   { background: var(--amber-l); color: var(--amber-d); }
+  .badge-done    { background: var(--blue-l);  color: var(--blue-d); }
+
+  /* 情報行 */
+  .info-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .info-row:last-child { border-bottom: none; }
+  .info-label { font-size: 14px; color: var(--text2); }
+  .info-value { font-size: 14px; font-weight: 600; }
+  .info-value.overtime { color: var(--red); }
+
+  /* ボタン */
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 16px; }
+  .btn { padding: 14px 8px; border-radius: 12px; font-size: 14px; font-weight: 600; border: none; cursor: pointer; transition: all .15s; }
+  .btn:active { transform: scale(0.96); }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+  .btn-in   { background: var(--green);  color: #fff; }
+  .btn-in:hover:not(:disabled)   { background: var(--green-d); }
+  .btn-brk  { background: var(--amber);  color: #fff; }
+  .btn-brk:hover:not(:disabled)  { background: var(--amber-d); }
+  .btn-out  { background: var(--red);    color: #fff; }
+  .btn-out:hover:not(:disabled)  { background: #791F1F; }
+
+  /* ログ */
+  .log-item { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .log-item:last-child { border-bottom: none; }
+  .log-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+  .log-time { font-size: 13px; color: var(--text2); min-width: 42px; font-variant-numeric: tabular-nums; }
+  .log-text { font-size: 13px; }
+  .log-empty { font-size: 13px; color: var(--text2); text-align: center; padding: 12px 0; }
+
+  /* 社員選択画面 */
+  .login-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100dvh; padding: 24px; }
+  .login-title { font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .login-sub { font-size: 14px; color: var(--text2); margin-bottom: 28px; }
+  .staff-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; max-width: 360px; }
+  .staff-btn { padding: 18px 10px; background: var(--white); border: 1px solid var(--border); border-radius: 14px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all .15s; }
+  .staff-btn:active { transform: scale(0.97); background: var(--blue-l); border-color: var(--blue); color: var(--blue-d); }
+
+  /* 管理者 */
+  .metric-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .metric { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
+  .metric-val { font-size: 28px; font-weight: 600; }
+  .metric-lbl { font-size: 11px; color: var(--text2); margin-top: 2px; }
+  .emp-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .emp-row:last-child { border-bottom: none; }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; background: var(--blue-l); color: var(--blue-d); }
+  .emp-name { font-size: 14px; font-weight: 600; flex: 1; }
+  .emp-time { font-size: 12px; color: var(--text2); }
+
+  /* レポート */
+  .select-wrap { margin-bottom: 14px; }
+  .select-wrap select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; background: var(--white); color: var(--text); }
+  .report-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .report-row:last-child { border-bottom: none; }
+  .report-name { color: var(--text); font-weight: 500; }
+  .report-vals { display: flex; gap: 16px; }
+  .report-val { text-align: right; }
+  .report-val .lbl { font-size: 11px; color: var(--text2); }
+  .report-val .num { font-size: 14px; font-weight: 600; }
+  .ot-red { color: var(--red); }
+
+  /* ローディング */
+  .loading { text-align: center; padding: 20px; color: var(--text2); font-size: 14px; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a18; color: #fff; padding: 10px 20px; border-radius: 99px; font-size: 13px; font-weight: 500; z-index: 999; opacity: 0; transition: opacity .3s; pointer-events: none; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<!-- トースト通知 -->
+<div class="toast" id="toast"></div>
+
+<!-- 社員選択画面 -->
+<div class="login-wrap" id="login-screen">
+  <div class="login-title">勤怠管理</div>
+  <div class="login-sub">名前を選んでください</div>
+  <div class="staff-grid" id="staff-grid">
+    <div class="loading">読み込み中...</div>
+  </div>
+</div>
+
+<!-- メイン画面 -->
+<div id="main-screen" style="display:none">
+  <div class="nav">
+    <span class="nav-title">勤怠管理</span>
+    <span class="nav-user" id="nav-user"></span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="showTab('punch')">打刻</div>
+    <div class="tab" onclick="showTab('admin')">管理者</div>
+    <div class="tab" onclick="showTab('report')">月次レポート</div>
+  </div>
+  <div class="content">
+
+    <!-- 打刻タブ -->
+    <div class="section active" id="tab-punch">
+      <div class="card">
+        <div class="clock">
+          <div class="clock-time" id="clock">--:--</div>
+          <div class="clock-date" id="clock-date"></div>
+        </div>
+        <div class="info-row">
+          <span class="info-label">状況</span>
+          <span class="badge badge-off" id="status-badge">未出勤</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">出勤時刻</span>
+          <span class="info-value" id="checkin-time">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">勤務時間</span>
+          <span class="info-value" id="work-time">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">休憩時間</span>
+          <span class="info-value" id="break-time">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">残業時間</span>
+          <span class="info-value overtime" id="ot-time">—</span>
+        </div>
+        <div class="btn-grid">
+          <button class="btn btn-in"  id="btn-in"  onclick="punch('出勤')">出勤</button>
+          <button class="btn btn-brk" id="btn-brk" onclick="punchBreak()" disabled>休憩</button>
+          <button class="btn btn-out" id="btn-out" onclick="punch('退勤')" disabled>退勤</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">本日のログ</div>
+        <div id="log-list"><div class="log-empty">打刻するとログが表示されます</div></div>
+      </div>
+      <div style="text-align:center;margin-top:8px">
+        <button onclick="logout()" style="background:none;border:none;font-size:13px;color:var(--text2);cursor:pointer;padding:8px">← 名前選択に戻る</button>
+      </div>
+    </div>
+
+    <!-- 管理者タブ -->
+    <div class="section" id="tab-admin">
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-val" style="color:var(--green)" id="m-working">—</div><div class="metric-lbl">出勤中</div></div>
+        <div class="metric"><div class="metric-val" style="color:var(--amber)" id="m-break">—</div><div class="metric-lbl">休憩中</div></div>
+        <div class="metric"><div class="metric-val" style="color:var(--blue)" id="m-done">—</div><div class="metric-lbl">退勤済</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">本日の状況</div>
+        <div id="emp-list"><div class="loading">読み込み中...</div></div>
+      </div>
+    </div>
+
+    <!-- 月次レポートタブ -->
+    <div class="section" id="tab-report">
+      <div class="select-wrap">
+        <select id="report-month" onchange="loadReport()"></select>
+      </div>
+      <div class="metric-grid">
+        <div class="metric"><div class="metric-val" id="r-days">—</div><div class="metric-lbl">出勤日数</div></div>
+        <div class="metric"><div class="metric-val" id="r-avg">—</div><div class="metric-lbl">平均勤務h</div></div>
+        <div class="metric"><div class="metric-val ot-red" id="r-ot">—</div><div class="metric-lbl">総残業h</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">社員別サマリー</div>
+        <div id="report-list"><div class="loading">月を選んでください</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwJO57RErZIRbJwdn_U90JPikq3HTLgXWOG3xThtAeQVhjRKHl7o8VEw93N4eF3yjFU/exec";
+const WORK_STD_MIN = 8 * 60;
+
+// ── 状態 ──
+let currentUser = null;
+let myState = "off"; // off | working | break | done
+let checkinMs = null, breakStartMs = null, totalBreakMs = 0;
+let logs = [];
+let tickTimer = null;
+
+// ── 起動 ──
+window.onload = () => {
+  initMonthSelect();
+  loadStaff();
+};
+
+// ── 社員リスト取得 ──
+async function loadStaff() {
+  try {
+    const res = await gasGet({ action: "getStaff" });
+    const grid = document.getElementById("staff-grid");
+    if (!res.names || res.names.length === 0) {
+      grid.innerHTML = '<div class="loading">社員マスタにデータがありません</div>';
+      return;
+    }
+    grid.innerHTML = res.names.map(n =>
+      `<button class="staff-btn" onclick="selectUser('${n}')">${n}</button>`
+    ).join("");
+  } catch(e) {
+    document.getElementById("staff-grid").innerHTML = '<div class="loading">読み込みエラー。GASのURLを確認してください。</div>';
+  }
+}
+
+function selectUser(name) {
+  currentUser = name;
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("main-screen").style.display = "block";
+  document.getElementById("nav-user").textContent = name;
+  startTick();
+}
+
+function logout() {
+  currentUser = null;
+  myState = "off";
+  checkinMs = null; breakStartMs = null; totalBreakMs = 0;
+  logs = [];
+  clearInterval(tickTimer);
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("main-screen").style.display = "none";
+  resetDisplay();
+}
+
+// ── 打刻 ──
+async function punch(type) {
+  const now = new Date();
+  const timeStr = fmt2(now.getHours()) + ":" + fmt2(now.getMinutes());
+  let workMin = "", breakMin = "", otMin = "";
+
+  if (type === "出勤") {
+    myState = "working";
+    checkinMs = now.getTime();
+    totalBreakMs = 0;
+    document.getElementById("checkin-time").textContent = timeStr;
+    addLog(type, timeStr, "#1D9E75");
+
+  } else if (type === "退勤") {
+    if (myState === "break") { totalBreakMs += now.getTime() - breakStartMs; breakStartMs = null; }
+    myState = "done";
+    const elapsed = now.getTime() - checkinMs;
+    workMin  = Math.round((elapsed - totalBreakMs) / 60000);
+    breakMin = Math.round(totalBreakMs / 60000);
+    otMin    = Math.max(0, workMin - WORK_STD_MIN);
+    addLog(type, timeStr, "#A32D2D");
+  }
+
+  updateDisplay();
+  updateButtons();
+  setBadge();
+
+  // GASへ送信
+  try {
+    await gasPost({ action:"punch", name:currentUser, type, time:timeStr, workMin, breakMin, overtimeMin: otMin });
+    showToast(type === "出勤" ? "出勤を記録しました" : "退勤を記録しました");
+  } catch(e) {
+    showToast("⚠️ 通信エラー。再度お試しください");
+  }
+}
+
+async function punchBreak() {
+  const now = new Date();
+  const timeStr = fmt2(now.getHours()) + ":" + fmt2(now.getMinutes());
+
+  if (myState === "working") {
+    myState = "break";
+    breakStartMs = now.getTime();
+    addLog("休憩開始", timeStr, "#BA7517");
+    try { await gasPost({ action:"punch", name:currentUser, type:"休憩開始", time:timeStr }); } catch(e){}
+    showToast("休憩を開始しました");
+  } else if (myState === "break") {
+    totalBreakMs += now.getTime() - breakStartMs;
+    breakStartMs = null;
+    myState = "working";
+    addLog("休憩終了", timeStr, "#185FA5");
+    try { await gasPost({ action:"punch", name:currentUser, type:"休憩終了", time:timeStr }); } catch(e){}
+    showToast("休憩を終了しました");
+  }
+  updateButtons();
+  setBadge();
+}
+
+// ── 表示更新 ──
+function startTick() {
+  clearInterval(tickTimer);
+  tickTimer = setInterval(tick, 1000);
+  tick();
+}
+
+function tick() {
+  const now = new Date();
+  document.getElementById("clock").textContent = fmt2(now.getHours()) + ":" + fmt2(now.getMinutes()) + ":" + fmt2(now.getSeconds());
+  const days = ["日","月","火","水","木","金","土"];
+  document.getElementById("clock-date").textContent =
+    `${now.getFullYear()}年${now.getMonth()+1}月${now.getDate()}日（${days[now.getDay()]}）`;
+
+  if (myState === "working" || myState === "break") {
+    const bk = totalBreakMs + (myState === "break" ? now.getTime() - breakStartMs : 0);
+    const work = now.getTime() - checkinMs - bk;
+    document.getElementById("work-time").textContent  = fmtMs(work);
+    document.getElementById("break-time").textContent = fmtMs(bk);
+    const ot = work - WORK_STD_MIN * 60000;
+    document.getElementById("ot-time").textContent = ot > 0 ? "+ " + fmtMs(ot) : "なし";
+  }
+}
+
+function updateDisplay() {
+  if (myState === "done" && checkinMs) {
+    const now = Date.now();
+    const bk   = totalBreakMs;
+    const work  = now - checkinMs - bk;
+    document.getElementById("work-time").textContent  = fmtMs(work);
+    document.getElementById("break-time").textContent = fmtMs(bk);
+    const ot = work - WORK_STD_MIN * 60000;
+    document.getElementById("ot-time").textContent = ot > 0 ? "+ " + fmtMs(ot) : "なし";
+  }
+}
+
+function resetDisplay() {
+  document.getElementById("checkin-time").textContent = "—";
+  document.getElementById("work-time").textContent    = "—";
+  document.getElementById("break-time").textContent   = "—";
+  document.getElementById("ot-time").textContent      = "—";
+  document.getElementById("log-list").innerHTML = '<div class="log-empty">打刻するとログが表示されます</div>';
+  document.getElementById("clock").textContent = "--:--:--";
+  setBadge();
+  updateButtons();
+}
+
+function setBadge() {
+  const b = document.getElementById("status-badge");
+  const map = {
+    off:     ["未出勤", "badge-off"],
+    working: ["勤務中", "badge-working"],
+    break:   ["休憩中", "badge-break"],
+    done:    ["退勤済", "badge-done"],
+  };
+  const [t, c] = map[myState] || map.off;
+  b.textContent = t;
+  b.className = "badge " + c;
+}
+
+function updateButtons() {
+  document.getElementById("btn-in").disabled  = myState !== "off";
+  document.getElementById("btn-brk").disabled = myState === "off" || myState === "done";
+  document.getElementById("btn-brk").textContent = myState === "break" ? "再開" : "休憩";
+  document.getElementById("btn-out").disabled = myState === "off" || myState === "done";
+}
+
+function addLog(type, time, color) {
+  logs.unshift({ type, time, color });
+  document.getElementById("log-list").innerHTML = logs.map(l =>
+    `<div class="log-item">
+      <span class="log-time">${l.time}</span>
+      <div class="log-dot" style="background:${l.color}"></div>
+      <span class="log-text">${l.type}</span>
+    </div>`
+  ).join("");
+}
+
+// ── タブ切り替え ──
+function showTab(name) {
+  document.querySelectorAll(".tab").forEach((t, i) => {
+    t.classList.toggle("active", ["punch","admin","report"][i] === name);
+  });
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.getElementById("tab-" + name).classList.add("active");
+  if (name === "admin")  loadAdmin();
+  if (name === "report") loadReport();
+}
+
+// ── 管理者タブ ──
+async function loadAdmin() {
+  document.getElementById("emp-list").innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const today = todayStr();
+    const res = await gasGet({ action:"getData", name:"全員", month: today.slice(0,7) });
+    const rows = res.rows || [];
+
+    // 社員ごとの最新状態を集計
+    const map = {};
+    rows.filter(r => r.date === today).forEach(r => {
+      if (!map[r.name]) map[r.name] = { name: r.name, state:"off", checkin:"", checkout:"" };
+      if (r.type === "出勤")    { map[r.name].state = "working"; map[r.name].checkin = r.time; }
+      if (r.type === "退勤")    { map[r.name].state = "done";    map[r.name].checkout = r.time; }
+      if (r.type === "休憩開始") map[r.name].state = "break";
+      if (r.type === "休憩終了") map[r.name].state = "working";
+    });
+
+    const list = Object.values(map);
+    const cnt = { working:0, break:0, done:0 };
+    list.forEach(e => { if (cnt[e.state] !== undefined) cnt[e.state]++; });
+    document.getElementById("m-working").textContent = cnt.working;
+    document.getElementById("m-break").textContent   = cnt.break;
+    document.getElementById("m-done").textContent    = cnt.done;
+
+    if (list.length === 0) {
+      document.getElementById("emp-list").innerHTML = '<div class="log-empty">本日の打刻データがありません</div>';
+      return;
+    }
+
+    const stateLabel = { working:"勤務中", break:"休憩中", done:"退勤済", off:"未出勤" };
+    const stateClass = { working:"badge-working", break:"badge-break", done:"badge-done", off:"badge-off" };
+    document.getElementById("emp-list").innerHTML = list.map(e => {
+      const init = e.name.charAt(0);
+      const time = e.checkin + (e.checkout ? " → " + e.checkout : "");
+      return `<div class="emp-row">
+        <div class="avatar">${init}</div>
+        <div>
+          <div class="emp-name">${e.name}</div>
+          <div class="emp-time">${time}</div>
+        </div>
+        <span class="badge ${stateClass[e.state]}">${stateLabel[e.state]}</span>
+      </div>`;
+    }).join("");
+  } catch(e) {
+    document.getElementById("emp-list").innerHTML = '<div class="loading">読み込みエラー</div>';
+  }
+}
+
+// ── 月次レポートタブ ──
+function initMonthSelect() {
+  const sel = document.getElementById("report-month");
+  const now = new Date();
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.getFullYear() + "/" + fmt2(d.getMonth() + 1);
+    const lbl = d.getFullYear() + "年" + (d.getMonth() + 1) + "月";
+    sel.innerHTML += `<option value="${val}"${i===0?" selected":""}>${lbl}</option>`;
+  }
+}
+
+async function loadReport() {
+  const month = document.getElementById("report-month").value;
+  document.getElementById("report-list").innerHTML = '<div class="loading">読み込み中...</div>';
+  try {
+    const res = await gasGet({ action:"getData", name:"全員", month });
+    const rows = res.rows || [];
+
+    // 退勤レコードだけ集計
+    const byName = {};
+    rows.filter(r => r.type === "退勤").forEach(r => {
+      if (!byName[r.name]) byName[r.name] = { days:0, workMin:0, otMin:0 };
+      byName[r.name].days++;
+      byName[r.name].workMin += Number(r.workMin) || 0;
+      byName[r.name].otMin   += Number(r.overtimeMin) || 0;
+    });
+
+    const list = Object.entries(byName);
+    if (list.length === 0) {
+      document.getElementById("report-list").innerHTML = '<div class="log-empty">この月のデータがありません</div>';
+      document.getElementById("r-days").textContent = "—";
+      document.getElementById("r-avg").textContent  = "—";
+      document.getElementById("r-ot").textContent   = "—";
+      return;
+    }
+
+    const totalDays = list.reduce((s,[,v]) => s + v.days, 0);
+    const totalWork = list.reduce((s,[,v]) => s + v.workMin, 0);
+    const totalOt   = list.reduce((s,[,v]) => s + v.otMin, 0);
+    document.getElementById("r-days").textContent = Math.round(totalDays / list.length) + "日";
+    document.getElementById("r-avg").textContent  = (totalWork / totalDays / 60).toFixed(1) + "h";
+    document.getElementById("r-ot").textContent   = Math.round(totalOt / 60) + "h";
+
+    document.getElementById("report-list").innerHTML = list.map(([name, v]) => {
+      const avgH = v.days > 0 ? (v.workMin / v.days / 60).toFixed(1) : "0.0";
+      const otH  = (v.otMin / 60).toFixed(1);
+      return `<div class="report-row">
+        <span class="report-name">${name}</span>
+        <div class="report-vals">
+          <div class="report-val"><div class="lbl">出勤</div><div class="num">${v.days}日</div></div>
+          <div class="report-val"><div class="lbl">平均</div><div class="num">${avgH}h</div></div>
+          <div class="report-val"><div class="lbl">残業</div><div class="num ${Number(otH)>0?'ot-red':''}">${Number(otH)>0?'+'+otH+'h':'—'}</div></div>
+        </div>
+      </div>`;
+    }).join("");
+  } catch(e) {
+    document.getElementById("report-list").innerHTML = '<div class="loading">読み込みエラー</div>';
+  }
+}
+
+// ── ユーティリティ ──
+function fmt2(n) { return String(n).padStart(2, "0"); }
+function fmtMs(ms) {
+  if (ms < 0) ms = 0;
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? h + "時間" + fmt2(m) + "分" : fmt2(m) + "分";
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + "/" + fmt2(d.getMonth()+1) + "/" + fmt2(d.getDate());
+}
+
+async function gasGet(params) {
+  const q = new URLSearchParams(params).toString();
+  const res = await fetch(GAS_URL + "?" + q);
+  return res.json();
+}
+async function gasPost(data) {
+  const res = await fetch(GAS_URL, {
+    method: "POST",
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2500);
+}
+</script>
+</body>
+</html>
